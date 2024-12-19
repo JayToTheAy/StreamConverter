@@ -4,10 +4,6 @@ import sqlite3
 import spotipy
 from . import song
 
-class NoMatchFound(Exception):
-    """Exception for when no match is found."""
-    pass
-
 class SpotifyConverter(spotipy.Spotify):
     """Converts between songs and URLs."""
     con = sqlite3.connect("../db/songs.db") # this is relative to the convert pkg
