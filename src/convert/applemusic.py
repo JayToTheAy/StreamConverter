@@ -13,7 +13,30 @@ class AppleMusicConverter(applemusicpy.AppleMusic):
         super().__init__(secret_key, key_id, team_id)
 
     def url_to_song(self, url: str) -> song.Song:
-        raise NotImplementedError
+        """Takes in actual URLs"""
+        album_id, song_id = self.__trim_url(url).split('?i=')
+        self.cur.execute("SELECT * FROM applemusic WHERE songid=? AND albumid=?",
+                         [song_id, album_id])
+        track = self.cur.fetchone()
+        if track is not None:
+            return song.Song(source="applemusic",
+                             uid=(track[0]), #we pass only the songid, not albumid
+                             isrc=track[2],
+                             title=track[3],
+                             first_artist=track[4])
+
+        # if db came up empty, query for data on the song_id:
+        track = self.song(song_id)
+        if track is not None:
+            data = self.repack_data(track['data'][0])
+            self.__commit_song(data)
+            return song.Song(source="applemusic",
+                             uid=data['song_id'],
+                             isrc=data['isrc'],
+                             title=data['track_name'],
+                             first_artist=data['artist_name'])
+
+        raise song.NoMatchFoundError("No match found for this URL.")
 
     def song_to_url(self, a_song: song.Song, best_match: bool = False) -> str:
 

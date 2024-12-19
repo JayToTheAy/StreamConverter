@@ -47,13 +47,12 @@ class YTMusicConverter(YTMusic):
                                 track['title'],
                                 track['artists'][0]['name'])
 
-                result_song = song.Song(source="ytmusic",
+                return song.Song(source="ytmusic",
                                     uid=track['videoId'],
                                     isrc=isrc,
                                     title=track['title'],
                                     first_artist=track['artists'][0]['name'],
                                     attributes=track)
-                return result_song
 
         raise song.NoMatchFoundError("No match found for this URL.")
 
