@@ -1,0 +1,3 @@
+SP_CLIENT_ID = None
+SP_CLIENT_SCRT = None
+SP_REDIRECT_URI = None
