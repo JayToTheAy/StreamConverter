@@ -82,7 +82,7 @@ class YTMusicConverter(YTMusic):
         """
         # first, check the database for the isrc if we have an isrc
         if a_song.isrc is not None:
-            self.cur.execute("SELECT uid FROM ytmusic WHERE isrc=? limit 1", [a_song.isrc.lower()])
+            self.cur.execute("SELECT uid FROM ytmusic WHERE isrc=? limit 1", [a_song.isrc])
             track = self.cur.fetchone()
             if track is not None:
                 url = f"https://music.youtube.com/watch?v={track[0]}"
@@ -132,7 +132,7 @@ class YTMusicConverter(YTMusic):
         """Commit a song to the database."""
         data = ({
             "uid": uid,
-            "isrc": isrc,
+            "isrc": isrc.lower(),
             "title": title,
             "first_artist": first_artist
         })

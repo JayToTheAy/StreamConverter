@@ -62,11 +62,18 @@ async def on_ready():
     print('------')
 
 @client.tree.command()
+@app_commands.describe(
+    service_from = "Service we're converting the song from",
+    service_to = "Service we're converting the song to",
+    url = "URL of the song",
+    best_match = "If we can't find an exact match, should we search for a best match"
+)
 async def song(
         interaction: discord.Interaction,
         service_from: SERVICES,
         service_to: SERVICES,
-        url: str
+        url: str,
+        best_match: bool = False
 ):
     """Find this song on another streaming platform."""
     print("AAAA! AAA! AAA!")

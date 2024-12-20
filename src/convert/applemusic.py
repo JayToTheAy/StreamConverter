@@ -107,15 +107,15 @@ class AppleMusicConverter(applemusicpy.AppleMusic):
         return {
                 'song_id' : data['id'],
                 'album_id' : data['attributes']['url'].split('/')[-1].split('?i=')[0],
-                'isrc' : data['attributes']['isrc'],
+                'isrc' : data['attributes']['isrc'].lower(),
                 'artist_name' : data['attributes']['artistName'],
                 'track_name' : data['attributes']['name']
             }
 
     @classmethod
     def __commit_song(cls, data: dict):
-        print(f"Made a commit to applemusic: {data['isrc']}")
         """Add a song to the database."""
+        print(f"Made a commit to applemusic: {data['isrc']}")
         cls.cur.execute("INSERT INTO applemusic(songid, albumid, isrc, title, artist) VALUES \
                         (:song_id, :album_id, :isrc, :track_name, :artist_name) ON CONFLICT\
                         (songid, albumid) DO UPDATE SET isrc=:isrc, title=:track_name, \

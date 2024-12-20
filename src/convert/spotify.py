@@ -125,9 +125,9 @@ class SpotifyConverter(spotipy.Spotify):
     @classmethod
     def __commit_song(cls, spotify_uid: str, isrc: str, title: str, first_artist: str):
         """Add a song to the database."""
-        print(f"Made a commit to ytmusic: {isrc}")
+        print(f"Made a commit to spotify: {isrc}")
         cls.cur.execute("INSERT INTO spotify VALUES (?, ?, ?, ?)",
-                         [spotify_uid, isrc, title, first_artist])
+                         [spotify_uid, isrc.lower(), title, first_artist])
         cls.con.commit()
 
 #cur.execute("CREATE TABLE spotify(uid, isrc, title, first_artist)")
