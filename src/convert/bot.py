@@ -26,31 +26,41 @@ import ytmusic
 import applemusic
 import song as sng
 
-# region .env setup
+# constants
 load_dotenv()
-DISCORD_TOKEN = environ.get('DISCORD_TOKEN')
+DISCORD_TOKEN = environ.get("DISCORD_TOKEN")
 print(DISCORD_TOKEN)
-OWNER_ID = environ.get('OWNER_ID')
-MY_GUILD_ID = environ.get('MY_GUILD_ID')
+OWNER_ID = environ.get("OWNER_ID")
+MY_GUILD_ID = environ.get("MY_GUILD_ID")
 
-SP_CLIENT_ID = environ.get('SP_CLIENT_ID')
-SP_CLIENT_SCRT = environ.get('SP_CLIENT_SCRT')
-SP_REDIRECT_URI = environ.get('SP_REDIRECT_URI')
+SP_CLIENT_ID = environ.get("SP_CLIENT_ID")
+SP_CLIENT_SCRT = environ.get("SP_CLIENT_SCRT")
+SP_REDIRECT_URI = environ.get("SP_REDIRECT_URI")
 
-AP_SECRET_KEY = environ.get('AP_SECRET_KEY')
-AP_KEY_ID = environ.get('AP_KEY_ID')
-AP_TEAM_ID = environ.get('AP_TEAM_ID')
-# endregion
+AP_SECRET_KEY = environ.get("AP_SECRET_KEY")
+AP_KEY_ID = environ.get("AP_KEY_ID")
+AP_TEAM_ID = environ.get("AP_TEAM_ID")
 
 MY_GUILD = discord.Object(id=MY_GUILD_ID)
+# endregion
 
-SERVICES = Enum('Services', [('Spotify', 'spotify'),
-                             ('Apple Music', 'applemusic'),
-                             ('YT Music', 'ytmusic')
-                             ])
+
+# region Define Classes
+class NoServiceMatchedError(Exception):
+    """Exception for when no service is matched."""
+
+    pass
+
+
+SERVICES = Enum(
+    "Services",
+    [("Spotify", "spotify"), ("Apple Music", "applemusic"), ("YT Music", "ytmusic")],
+)
+
 
 class MyClient(discord.Client):
     """Client class"""
+
     def __init__(self, *, intents: discord.Intents):
         super().__init__(intents=intents)
         self.tree = app_commands.CommandTree(self)
@@ -59,7 +69,10 @@ class MyClient(discord.Client):
         # This copies the global commands over to your guild.
         self.tree.copy_global_to(guild=MY_GUILD)
         await self.tree.sync(guild=MY_GUILD)
-        print(f'Copied globals to guild {MY_GUILD.id}')
+        print(f"Copied globals to guild {MY_GUILD.id}")
+
+
+# endregion
 
 
 # make API objs
@@ -76,89 +89,123 @@ tree = client.tree
 @client.event
 async def on_ready():
     """On-ready event"""
-    print(f'Logged in as {client.user} (ID: {client.user.id})')
-    print('------')
+    print(f"Logged in as {client.user} (ID: {client.user.id})")
+    print("------")
 
+
+# region Song Command
 @client.tree.command()
 @app_commands.describe(
-    service_from = "Service we're converting the song from",
-    service_to = "Service we're converting the song to",
-    url = "URL of the song",
-    best_match = "If we can't find an exact match, should we search for a best match"
+    service_from="Service we're converting the song from",
+    service_to="Service we're converting the song to",
+    url="URL of the song",
+    best_match="If we can't find an exact match, should we search for a best match",
 )
 async def song(
-        interaction: discord.Interaction,
-        service_from: SERVICES,
-        service_to: SERVICES,
-        url: str,
-        best_match: bool = False
+    interaction: discord.Interaction,
+    service_from: SERVICES,
+    service_to: SERVICES,
+    url: str,
+    best_match: bool = False,
 ):
     """Find this song on another streaming platform."""
-    print("AAAA! AAA! AAA!")
-    print(url)
-    # convert to song obj
-    picked_service = service_from.value if service_from is not None else None
-    song_obj = None
-    match picked_service:
-        case 'spotify':
-            print("Spotify")
-            song_obj = sp.uri_to_song(url)
-        case 'applemusic':
-            print("Apple Music")
-            song_obj = am.url_to_song(url)
-        case 'ytmusic':
-            print('YT Music')
-            song_obj = yt.url_to_song(url)
-        case _:
-            raise Exception("No service matched.")
-    print(song_obj.title)
-    # convert song obj to new service
-    picked_service = service_to.value if service_to is not None else None
-    url = " "
-    match picked_service:
-        case 'spotify':
-            print("Spotify")
-            try:
-                url = sp.song_to_url(song_obj)
-            except sng.NoMatchFoundError:
-                await interaction.response.send_message("No match found.", ephemeral=True)
-        case 'applemusic':
-            print("Apple Music")
-            try:
-                url = am.song_to_url(song_obj)
-            except sng.NoMatchFoundError:
-                await interaction.response.send_message("No match found.", ephemeral=True)
-        case 'ytmusic':
-            print('YT Music')
-            try:
-                url = yt.song_to_url(song_obj)
-            except sng.NoMatchFoundError:
-                await interaction.response.send_message("No match found.", ephemeral=True)
-        case _:
-            raise Exception("No service matched.")
+    # this can be a while with network calls, so defer completion to avoid a timeout.
+    # we also want to clean up afterwards if it fails, so try/except it so we can
+    # remove our follow-up message if we fail, and then raise the exception again.
+    await interaction.response.defer(ephemeral=True)
+    try:
+        # convert to song obj
+        print("URL received :", url)
+        picked_service = service_from.value if service_from is not None else None
+        song_obj = None
+        try:
+            match picked_service:
+                case "spotify":
+                    print("From: Spotify")
+                    song_obj = sp.uri_to_song(url)
+                case "applemusic":
+                    print("From: Apple Music")
+                    song_obj = am.url_to_song(url)
+                case "ytmusic":
+                    print("From: YT Music")
+                    song_obj = yt.url_to_song(url)
+                case _:
+                    await interaction.followup.send(
+                        "No service matched. Contact the \
+                                                    bot owner about how you did this!",
+                        ephemeral=True,
+                    )
+                    raise NoServiceMatchedError("No service matched.")
+        except sng.NoMatchFoundError:
+            await interaction.followup.send(
+                "No match found for this URL!", ephemeral=True
+            )
 
-    print(url)
-    if url == " ":
-        await interaction.response.send_message("No match found.", ephemeral=True)
-    await interaction.response.send_message(url)
+        # convert song obj to new service
+        picked_service = service_to.value if service_to is not None else None
+        url = " "
+        try:
+            match picked_service:
+                case "spotify":
+                    print("To: Spotify")
+                    url = sp.song_to_url(song_obj)
+                case "applemusic":
+                    print("To: Apple Music")
+                    url = am.song_to_url(song_obj, best_match=best_match)
+                case "ytmusic":
+                    print("To: YT Music")
+                    url = yt.song_to_url(song_obj, best_match=best_match)
+                case _:
+                    await interaction.followup.send(
+                        "No service matched. Contact the \
+                                                    bot owner about how you did this!",
+                        ephemeral=True,
+                    )
+                    raise NoServiceMatchedError("No service matched.")
+        except sng.NoMatchFoundError:
+            await interaction.followup.send(
+                "No match found for this URL!", ephemeral=True
+            )
+
+        # send out what url we got
+        if url == " ":
+            await interaction.followup.send("No match found.", ephemeral=True)
+        await interaction.followup.send(url)
+
+    # if we get a generic error, un-promise the followup, then continue raising
+    except Exception as e:
+        print(f"Error: {e} of class {e.__class__}")
+        await interaction.followup.send(
+            "An error occurred! Check your inputs.", ephemeral=True
+        )
+        raise e
+
+
+# endregion
+
 
 @client.tree.command()
 async def refresh(interaction: discord.Interaction, guild_id: str = None):
     """Sync command tree for a specified guild, or globally."""
     if interaction.user.id != int(OWNER_ID):
-        await interaction.response.send_message('You must be the owner to use this command!',
-                                                ephemeral=True)
+        await interaction.response.send_message(
+            "You must be the owner to use this command!", ephemeral=True
+        )
         return
 
-    print(f'Syncing for {guild_id if guild_id is not None else 'Global'}...')
+    print(f"Syncing for {guild_id if guild_id is not None else 'Global'}...")
     if guild_id is not None:
         guild = discord.Object(id=guild_id)
         await tree.sync(guild=guild)
     else:
         await tree.sync()
 
-    await interaction.response.send_message("Commands have been synced globally. This may take up to an hour to propagate.",
-                                                    ephemeral=True)
+    await interaction.response.send_message(
+        "Commands have been synced globally. \
+                                            This may take up to an hour to propagate.",
+        ephemeral=True,
+    )
+
 
 if __name__ == "__main__":
     client.run(DISCORD_TOKEN)

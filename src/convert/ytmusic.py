@@ -20,6 +20,7 @@ from ytmusicapi import YTMusic
 import musicfetch
 import song
 
+
 class YTMusicConverter(YTMusic):
     """Converts between songs and URLs.
     This can lag due to the latency to the musicfetch API, so when called,
@@ -34,7 +35,7 @@ class YTMusicConverter(YTMusic):
     Nonetheless, people do want to convert from YTMusic, so..."""
 
     # TABLE ytmusic(uid, isrc, title, first_artist)
-    con = sqlite3.connect("../db/songs.db") # this is relative to the convert pkg
+    con = sqlite3.connect("../db/songs.db")  # this is relative to the convert pkg
     cur = con.cursor()
 
     def __init__(self):
@@ -57,28 +58,31 @@ class YTMusicConverter(YTMusic):
         self.cur.execute("SELECT * FROM ytmusic WHERE uid=?", [uri])
         track = self.cur.fetchone()
         if track is not None:
-            return song.Song(source="spotify",
-                             uid=track[0],
-                             isrc=track[1],
-                             title=track[2],
-                             first_artist=track[3])
+            return song.Song(
+                source="spotify",
+                uid=track[0],
+                isrc=track[1],
+                title=track[2],
+                first_artist=track[3],
+            )
 
         # if db came up empty, query for data on the uri:
         tracks = self.search(uri, limit=1)
-        isrc = musicfetch.fetch_isrc(url) # note: this can miss; if so, returns None
+        isrc = musicfetch.fetch_isrc(url)  # note: this can miss; if so, returns None
         for track in tracks:
             if track is not None:
-                self.__commit_song(track['videoId'],
-                                isrc,
-                                track['title'],
-                                track['artists'][0]['name'])
+                self.__commit_song(
+                    track["videoId"], isrc, track["title"], track["artists"][0]["name"]
+                )
 
-                return song.Song(source="ytmusic",
-                                    uid=track['videoId'],
-                                    isrc=isrc,
-                                    title=track['title'],
-                                    first_artist=track['artists'][0]['name'],
-                                    attributes=track)
+                return song.Song(
+                    source="ytmusic",
+                    uid=track["videoId"],
+                    isrc=isrc,
+                    title=track["title"],
+                    first_artist=track["artists"][0]["name"],
+                    attributes=track,
+                )
 
         raise song.NoMatchFoundError("No match found for this URL.")
 
@@ -97,45 +101,59 @@ class YTMusicConverter(YTMusic):
         """
         # first, check the database for the isrc if we have an isrc
         if a_song.isrc is not None:
-            self.cur.execute("SELECT uid FROM ytmusic WHERE isrc=? limit 1", [a_song.isrc])
+            self.cur.execute(
+                "SELECT uid FROM ytmusic WHERE isrc=? limit 1", [a_song.isrc]
+            )
             track = self.cur.fetchone()
             if track is not None:
                 url = f"https://music.youtube.com/watch?v={track[0]}"
                 return url
 
             # if nothing was returned from the DB, search YTMusic by isrc
-            tracks = self.search(f'{a_song.isrc}', filter='songs', limit=1)
+            tracks = self.search(f"{a_song.isrc}", filter="songs", limit=1)
             for track in tracks:
                 if track is not None:
                     # now, false friends exist, so we need to confirm the isrcs match
-                    found_isrc = musicfetch.fetch_isrc(f"https://music.youtube.com/watch?v={track['videoId']}")
+                    found_isrc = musicfetch.fetch_isrc(
+                        f"https://music.youtube.com/watch?v={track['videoId']}"
+                    )
                     if found_isrc is not None:
                         if found_isrc.lower() == a_song.isrc.lower():
-                            self.__commit_song(track['videoId'],
-                                            a_song.isrc,
-                                            track['title'],
-                                            track['artists'][0]['name'])
-                            return f"https://music.youtube.com/watch?v={track['videoId']}"
+                            self.__commit_song(
+                                track["videoId"],
+                                a_song.isrc,
+                                track["title"],
+                                track["artists"][0]["name"],
+                            )
+                            return (
+                                f"https://music.youtube.com/watch?v={track['videoId']}"
+                            )
 
         # if we don't have an isrc, search by title and artist
-        tracks = self.search(f'{a_song.title} {a_song.first_artist}', filter='songs', limit=5)
+        tracks = self.search(
+            f"{a_song.title} {a_song.first_artist}", filter="songs", limit=5
+        )
         for track in tracks:
             if track is not None:
-                uid = track['videoId']
+                uid = track["videoId"]
                 isrc = None
-                title = track['title']
-                first_artist = track['artists'][0]['name']
+                title = track["title"]
+                first_artist = track["artists"][0]["name"]
                 # check if they're similar, stripping out some stuff like (OFFICIAL VIDEO)
-                found_song = song.Song(source="ytmusic",
-                                       uid=uid,
-                                       isrc=isrc,
-                                       title=title,
-                                       first_artist=first_artist)
+                found_song = song.Song(
+                    source="ytmusic",
+                    uid=uid,
+                    isrc=isrc,
+                    title=title,
+                    first_artist=first_artist,
+                )
                 if a_song.is_similar(found_song):
-                    isrc = musicfetch.fetch_isrc(f"https://music.youtube.com/watch?v={uid}")
+                    isrc = musicfetch.fetch_isrc(
+                        f"https://music.youtube.com/watch?v={uid}"
+                    )
                     self.__commit_song(uid, isrc, title, first_artist)
                     return f"https://music.youtube.com/watch?v={uid}"
-        else: #pylint: disable=w0120
+        else:  # pylint: disable=w0120
             if best_match and len(tracks) > 0:
                 return f"https://music.youtube.com/watch?v={tracks[0]['videoId']}"
 
@@ -145,19 +163,22 @@ class YTMusicConverter(YTMusic):
     @classmethod
     def __commit_song(cls, uid: str, isrc: str, title: str, first_artist: str):
         """Commit a song to the database."""
-        data = ({
+        data = {
             "uid": uid,
             "isrc": isrc.lower(),
             "title": title,
-            "first_artist": first_artist
-        })
+            "first_artist": first_artist,
+        }
 
         print(f"Made a commit to ytmusic: {isrc}")
         # this is an upsert; sometimes an isrc won't be found so we'll have a null, but later,
         # it gets found as we keep querying musicfetch, so we want to update the record
-        cls.cur.execute("INSERT INTO ytmusic(uid, isrc, title, first_artist) VALUES (:uid, :isrc, \
+        cls.cur.execute(
+            "INSERT INTO ytmusic(uid, isrc, title, first_artist) VALUES (:uid, :isrc, \
                         :title, :first_artist) ON CONFLICT(uid) DO UPDATE SET isrc=:isrc, \
-                        title=:title, first_artist=:first_artist", data)
+                        title=:title, first_artist=:first_artist",
+            data,
+        )
         cls.con.commit()
 
     @staticmethod
@@ -170,8 +191,8 @@ class YTMusicConverter(YTMusic):
         Returns:
             str: videoID
         """
-        if '/watch?v=' in url:
-            url = url.split('/watch?v=')[1]
-        if '&' in url:
-            url = url.split('&')[0]
+        if "/watch?v=" in url:
+            url = url.split("/watch?v=")[1]
+        if "&" in url:
+            url = url.split("&")[0]
         return url
