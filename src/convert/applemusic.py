@@ -6,6 +6,8 @@ from . import song
 
 class AppleMusicConverter(applemusicpy.AppleMusic):
     """Converts between songs and Apple Music URLs"""
+
+    # TABLE applemusic(songid, albumid, isrc, title, artist)
     con = sqlite3.connect("../db/songs.db") # this is relative to the convert pkg
     cur = con.cursor()
 
@@ -39,6 +41,18 @@ class AppleMusicConverter(applemusicpy.AppleMusic):
         raise song.NoMatchFoundError("No match found for this URL.")
 
     def song_to_url(self, a_song: song.Song, best_match: bool = False) -> str:
+        """Converts a song obj to an Apple Music URL.
+
+        Args:
+            a_song (song.Song): song obj
+            best_match (bool, optional): Try and match a best fit? Defaults to False.
+
+        Raises:
+            song.NoMatchFoundError: No match found for this song.
+
+        Returns:
+            str: Apple Music URL of the matching song
+        """
 
         # first, check the database for the isrc if we have an isrc
         if a_song.isrc is not None:
@@ -57,24 +71,23 @@ class AppleMusicConverter(applemusicpy.AppleMusic):
                 return f"https://music.apple.com/us/album/{track['album_id']}?i={track['song_id']}"
 
         # if we don't have an isrc or failed to match, search by title and artist
-        tracks = self.search(f"{a_song.title} {a_song.first_artist}",
+        search_result = self.search(f"{a_song.title} {a_song.first_artist}",
                              types=['songs'],
                              limit=5,
-                             os='windows') #nb: if on windows...
-        for track in tracks:
-            data = track.get('results').get('songs').get('data')
-            if data is not None:
-                data = data[0]
-                track_data = self.repack_data(data)
+                             os='windows')['results'] #nb: if on windows...
+        tracks: list = search_result.get('songs').get('data')
+        if isinstance(tracks, list):
+            for track in tracks:
+                track_data = self.repack_data(track)
                 if a_song.isrc == track_data['isrc']:
                     self.__commit_song(track_data)
                     return f"https://music.apple.com/us/album/{track_data['album_id']}\
                     ?i={track_data['song_id']}"
-        else: #pylint: disable=w0120
-            if best_match and len(tracks) > 0:
-                track_data = self.repack_data(data[0])
-                return f"https://music.apple.com/us/album/{track_data['album_id']}?\
-                i={track_data['song_id']}"
+            else: #pylint: disable=w0120
+                if best_match and len(tracks) > 0:
+                    track_data = self.repack_data(tracks[0])
+                    return f"https://music.apple.com/us/album/{track_data['album_id']}?\
+                    i={track_data['song_id']}"
 
         # we never found a match, so
         raise song.NoMatchFoundError("No match found for this song.")
@@ -82,7 +95,7 @@ class AppleMusicConverter(applemusicpy.AppleMusic):
     def song_by_isrc(self, isrc: str):
         """Search Apple Music for a song by its ISRC. Returns None if none found."""
         data = None
-        track = self.songs_by_isrc([isrc]).get('data').get(0)
+        track = self.songs_by_isrc([isrc]).get('data')[0]
 
         if track is not None:
             data = self.repack_data(track)
@@ -102,9 +115,10 @@ class AppleMusicConverter(applemusicpy.AppleMusic):
     @classmethod
     def __commit_song(cls, data: dict):
         """Add a song to the database."""
-        cls.cur.execute("INSERT INTO ytmusic(songid, albumid, isrc, title, artist) VALUES (:song_id, :album_id, \
-                        :isrc, :track_name, :artist_name) ON CONFLICT(songid, albumid) DO UPDATE SET isrc=:isrc, \
-                        title=:track_name, artist=:artist_name", data)
+        cls.cur.execute("INSERT INTO applemusic(songid, albumid, isrc, title, artist) VALUES \
+                        (:song_id, :album_id, :isrc, :track_name, :artist_name) ON CONFLICT\
+                        (songid, albumid) DO UPDATE SET isrc=:isrc, title=:track_name, \
+                        artist=:artist_name", data)
         cls.con.commit()
 
     @staticmethod

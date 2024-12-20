@@ -6,7 +6,18 @@ from . import musicfetch
 from . import song
 
 class YTMusicConverter(YTMusic):
-    """Converts between songs and URLs."""
+    """Converts between songs and URLs.
+    This can lag due to the latency to the musicfetch API, so when called,
+    it should be in a context that can handle a 5 second latency.
+
+    Note: Hits against this can be wrong for a lot of reasons:
+    * The content ID that Musicfetch got from YT is wrong.
+    * There was no match, so we're matching on title and artist, which can be wrong.
+    * The titles and artists given on a YT music are video name and channel, which is...
+    inherently kind of wrong. 'Cecily Smith (lyric) by SuperLegitVideos is not ideal.
+
+    Nonetheless, people do want to convert from YTMusic, so..."""
+
     # TABLE ytmusic(uid, isrc, title, first_artist)
     con = sqlite3.connect("../db/songs.db") # this is relative to the convert pkg
     cur = con.cursor()
