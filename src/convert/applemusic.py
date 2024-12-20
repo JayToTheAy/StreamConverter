@@ -2,7 +2,7 @@
 
 import sqlite3
 import applemusicpy
-from . import song
+import song
 
 class AppleMusicConverter(applemusicpy.AppleMusic):
     """Converts between songs and Apple Music URLs"""
@@ -114,6 +114,7 @@ class AppleMusicConverter(applemusicpy.AppleMusic):
 
     @classmethod
     def __commit_song(cls, data: dict):
+        print(f"Made a commit to applemusic: {data['isrc']}")
         """Add a song to the database."""
         cls.cur.execute("INSERT INTO applemusic(songid, albumid, isrc, title, artist) VALUES \
                         (:song_id, :album_id, :isrc, :track_name, :artist_name) ON CONFLICT\

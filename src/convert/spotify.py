@@ -2,7 +2,7 @@
 
 import sqlite3
 import spotipy
-from . import song
+import song
 
 class SpotifyConverter(spotipy.Spotify):
     """Converts between songs and URLs."""
@@ -125,6 +125,7 @@ class SpotifyConverter(spotipy.Spotify):
     @classmethod
     def __commit_song(cls, spotify_uid: str, isrc: str, title: str, first_artist: str):
         """Add a song to the database."""
+        print(f"Made a commit to ytmusic: {isrc}")
         cls.cur.execute("INSERT INTO spotify VALUES (?, ?, ?, ?)",
                          [spotify_uid, isrc, title, first_artist])
         cls.con.commit()

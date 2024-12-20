@@ -2,8 +2,8 @@
 
 import sqlite3
 from ytmusicapi import YTMusic
-from . import musicfetch
-from . import song
+import musicfetch
+import song
 
 class YTMusicConverter(YTMusic):
     """Converts between songs and URLs.
