@@ -15,16 +15,34 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
+
+from os import environ
 from enum import Enum
+from dotenv import load_dotenv
 import discord
 from discord import app_commands
 import spotify
 import ytmusic
 import applemusic
 import song as sng
-import config
 
-MY_GUILD = discord.Object(id=config.MY_GUILD_ID)
+# region .env setup
+load_dotenv()
+DISCORD_TOKEN = environ.get('DISCORD_TOKEN')
+print(DISCORD_TOKEN)
+OWNER_ID = environ.get('OWNER_ID')
+MY_GUILD_ID = environ.get('MY_GUILD_ID')
+
+SP_CLIENT_ID = environ.get('SP_CLIENT_ID')
+SP_CLIENT_SCRT = environ.get('SP_CLIENT_SCRT')
+SP_REDIRECT_URI = environ.get('SP_REDIRECT_URI')
+
+AP_SECRET_KEY = environ.get('AP_SECRET_KEY')
+AP_KEY_ID = environ.get('AP_KEY_ID')
+AP_TEAM_ID = environ.get('AP_TEAM_ID')
+# endregion
+
+MY_GUILD = discord.Object(id=MY_GUILD_ID)
 
 SERVICES = Enum('Services', [('Spotify', 'spotify'),
                              ('Apple Music', 'applemusic'),
@@ -45,9 +63,9 @@ class MyClient(discord.Client):
 
 
 # make API objs
-sp = spotify.SpotifyConverter(config.SP_CLIENT_ID, config.SP_CLIENT_SCRT)
+sp = spotify.SpotifyConverter(SP_CLIENT_ID, SP_CLIENT_SCRT)
 yt = ytmusic.YTMusicConverter()
-am = applemusic.AppleMusicConverter(config.AP_SECRET_KEY, config.AP_KEY_ID, config.AP_TEAM_ID)
+am = applemusic.AppleMusicConverter(AP_SECRET_KEY, AP_KEY_ID, AP_TEAM_ID)
 
 # back to discord
 intents = discord.Intents.default()
@@ -127,7 +145,7 @@ async def song(
 @client.tree.command()
 async def refresh(interaction: discord.Interaction, guild_id: str = None):
     """Sync command tree for a specified guild, or globally."""
-    if interaction.user.id != int(config.OWNER_ID):
+    if interaction.user.id != int(OWNER_ID):
         await interaction.response.send_message('You must be the owner to use this command!',
                                                 ephemeral=True)
         return
@@ -143,4 +161,4 @@ async def refresh(interaction: discord.Interaction, guild_id: str = None):
                                                     ephemeral=True)
 
 if __name__ == "__main__":
-    client.run(config.TOKEN)
+    client.run(DISCORD_TOKEN)

@@ -1,0 +1,14 @@
+SP_CLIENT_ID=None
+SP_CLIENT_SCRT=None
+SP_REDIRECT_URI=None
+# endregion
+
+AP_SECRET_KEY="SecretKey\nGoesHere\nDivideLinesWith\nNewline"
+AP_KEY_ID=None
+AP_TEAM_ID=None
+# endregion
+
+DISCORD_TOKEN=None
+OWNER_ID=None
+MY_GUILD_ID=None
+# endregion

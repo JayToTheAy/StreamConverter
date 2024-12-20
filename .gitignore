@@ -1,8 +1,5 @@
 *musicfetch*
 __pycache__/
 *cache*
-test.py
-audio.py
-db/
-config.py
+*.db
 .env
