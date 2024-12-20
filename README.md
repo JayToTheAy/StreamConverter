@@ -22,6 +22,8 @@ Songs (really, recordings) are equal if their ISRCs are equal, and a match is ma
 
 Setting up the bot requires having a .env file with all the necessary keys (see .example-env; fill out those None fields, and rename it to .env). To use individual convert files, just create a conversion object (i.e. SpotifyConverter) and feed it the necessary keys as parameters.
 
+Run the setup.py folder to generate necessary sqlite db tables, or the bot will scream at you when it can't find those tables.
+
 ## Notes
 One module is intentionally left out from this code, which is necessary for ytmusic:
 * musicfetch.py - I'm unsure if this API is really meant for mass hits, so for now, I'm leaving out my code to slightly ease up on that.
