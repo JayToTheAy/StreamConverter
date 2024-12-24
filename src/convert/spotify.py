@@ -15,8 +15,12 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>."""
 
+from collections.abc import Iterable
+import urllib.parse
 import sqlite3
+import requests
 import spotipy
+import ratelimit
 import song
 
 
@@ -160,5 +164,69 @@ class SpotifyConverter(spotipy.Spotify):
         )
         cls.con.commit()
 
+    @classmethod
+    def get_release_for_barcode(cls, barcode, timeout:int=3):
+        response = cls.__query_musicbrainz('release?fmt=json&query=barcode:'
+                                           + barcode,
+                                           timeout=timeout)
+        if not response.ok:
+            raise response.raise_for_status()
+
+        if len(response.json()['releases']) != 1:
+            raise Exception("No single matching release found.")
+        release = response.json()['releases'][0]
+        release_attributes = {
+            'title': release['title'],
+            'artists': release['artist-credit'],
+            'mbid': release['id'],
+            'barcode': release['barcode']
+        }
+        return release_attributes
+
+    @classmethod
+    def get_digital_releases_from_title_and_artist(cls, title: str, artist: str, timeout:int=3) -> list[int]:
+        """Gets digital releases given title and artist"""
+        response = cls.__query_musicbrainz('release?fmt=json&query='
+                                + urllib.parse.quote(title + ' AND ')
+                                + urllib.parse.quote(artist + ' AND ')
+                                + 'format:digitalmedia',
+                                timeout=timeout)
+        if not response.ok:
+            raise response.raise_for_status()
+
+        upcs = set()
+        for release in response.json()['releases']:
+            if release != '':
+                upcs.add(int(release['barcode']))
+
+        return upcs
+
+    def find_sp_albums_from_upcs(self, upcs: Iterable[int]):
+        """A generator. Get the spotify albums that correspond to a list of UPCs.
+        If you only want the first UPC, simply do next(generator), and .close() it.
+
+        Note:
+            This does not tell you which UPC an album corresponds to;
+            the intended use case is something like 'given a list of UPCs
+            from different digital releases, corresponding Spotify albums.'
+
+        Args:
+            upcs (list[int]): list of UPCs
+
+        Yields:
+            string: spotify album ID corresponding to a UPC from the list.
+        """
+        for upc in upcs:
+            response = self.search(q=f'upc:{upc}', type='album', limit=1)
+            for album in response.get('albums').get('items'):
+                yield f'https://open.spotify.com/album/{album['id']}'
+
+    @staticmethod
+    @ratelimit.sleep_and_retry
+    @ratelimit.limits(calls=1, period=1)
+    def __query_musicbrainz(query: str, timeout: int = 3):
+        root = 'https://musicbrainz.org/ws/2/'
+        response = requests.get(root+query, timeout=timeout)
+        return response
 
 # cur.execute("CREATE TABLE spotify(uid, isrc, title, first_artist)")
