@@ -11,7 +11,8 @@ dependencies = [
   "spotipy",
   "ytmusicapi",
   "apple-music-python",
-  "discord"
+  "discord",
+  "ratelimit"
 ]
 requires-python = ">=3.10"
 authors = [
