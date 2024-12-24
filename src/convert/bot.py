@@ -183,6 +183,36 @@ async def song(
 
 # endregion
 
+# region UPC Command
+
+@client.tree.command()
+@app_commands.describe(
+    upc="Album barcode to search for"
+)
+async def upc(
+    interaction: discord.Interaction,
+    upc: int
+):
+    """Gets the Spotify album corresponding to a UPC.
+    This will accept any UPC, from a physical release for example,
+    and go off and fetch the corresponding Spotify album."""
+    await interaction.response.defer(ephemeral=True)
+    try:
+        release = sp.get_release_for_barcode(upc)
+        digi = sp.get_digital_releases_from_title_and_artist(release['title'],
+                                                    release['artists'][0]['name'])
+        url = next(sp.find_sp_albums_from_upcs)
+        sp.find_sp_albums_from_upcs.close()
+        await interaction.followup.send(
+            url
+        )
+    except Exception as e:
+        await interaction.followup.send(
+            "An error occurred.",
+            ephemeral=True
+        )
+        raise e
+# endregion
 
 @client.tree.command()
 async def refresh(interaction: discord.Interaction, guild_id: str = None):

@@ -166,6 +166,7 @@ class SpotifyConverter(spotipy.Spotify):
 
     @classmethod
     def get_release_for_barcode(cls, barcode, timeout:int=3):
+        """Gets release data from MusicBrainz for a given UPC."""
         response = cls.__query_musicbrainz('release?fmt=json&query=barcode:'
                                            + barcode,
                                            timeout=timeout)
